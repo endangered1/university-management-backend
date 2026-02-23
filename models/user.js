@@ -32,6 +32,13 @@ const userSchema = new mongoose.Schema({
   },
 });
 
+userSchema.set("toJSON", {
+  transform: function (doc, ret) {
+    delete ret.password;
+    return ret;
+  }
+});
+
 userSchema.methods.generateAuthToken = function () {
   return jwt.sign(
     { _id: this._id, role: this.role },
