@@ -2,6 +2,7 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const { User } = require("../models/user");
 const passport = require("passport");
+const authorize = require("../middleware/authorize");
 
 const router = express.Router();
 
@@ -37,6 +38,7 @@ router.post("/", async (req, res) => {
 router.get(
   "/",
   passport.authenticate("jwt", { session:false}),
+  authorize("admin"),
   async (req, res) => {
   const users = await User.find().select("-password");
   res.send(users);
@@ -48,6 +50,18 @@ router.get(
   passport.authenticate("jwt", {session: false}),
   (req,res) => {
   res.send(req.user);
+  }
+);
+
+router.get(
+  "/whoami",
+  passport.authenticate("jwt", { session: false }),
+  (req, res) => {
+    res.send({
+      _id: req.user._id,
+      email: req.user.email,
+      role: req.user.role
+    });
   }
 );
 

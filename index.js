@@ -6,6 +6,7 @@ const passport = require("passport");
 const users = require("./routes/users");
 const auth = require("./routes/auth");
 
+
 const app = express();
 app.use(express.json());
 
@@ -26,6 +27,10 @@ app.get("/", (req,res) => res.send("UMS API running..."));
 
 app.use("/api/users", users);
 app.use("/api/auth", auth);
+app.use("/api/departments", require("./routes/departments"));
+app.use("/api/courses", require("./routes/courses"));
+app.use("/api/sections", require("./routes/sections"));
+app.use("/api/enrollments", require("./routes/enrollments"));
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`Listening on the port ${port}...`));
