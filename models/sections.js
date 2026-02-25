@@ -32,6 +32,10 @@ const sectionSchema = new mongoose.Schema(
             required: true,
             min: 1,
             max: 200
+        },
+        enrollmentDeadline: {
+            type: Date,
+            required: true
         }
     },
     { timestamps: true }    

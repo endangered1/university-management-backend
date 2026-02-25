@@ -5,7 +5,6 @@ const { Section } = require("../models/sections");
 const { Course } = require("../models/courses");
 const { User } = require("../models/user");
 const { Enrollment } = require("../models/enrollments");
-
 const mongoose = require("mongoose");
 
 const router = express.Router();
@@ -16,17 +15,21 @@ router.post(
   authorize("admin"),
   async (req, res) => {
     try {
-      const { course, instructor, sectionName, semester, capacity } = req.body;
+      const { course, instructor, sectionName, semester, capacity, enrollmentDeadline } = req.body;
 
-      if (!course || !instructor || !sectionName || !semester || capacity == null)
+      if (!course || !instructor || !sectionName || !semester || capacity == null || !enrollmentDeadline)
         return res.status(400).send("All fields are required.");
+
+      const deadlineDate = new Date(enrollmentDeadline);
+      if (isNaN(deadlineDate.getTime()))
+        return res.status(400).send("Invalid enrollmentDeadline date.");
 
       const existingCourse = await Course.findById(course);
       if (!existingCourse)
         return res.status(400).send("Invalid course.");
 
       const existingInstructor = await User.findById(instructor);
-      if (!existingInstructor)
+      if (!existingInstructor || existingInstructor.role !== "instructor")
         return res.status(400).send("Invalid instructor.");
 
       const existingSection = await Section.findOne({ course, semester, sectionName });
@@ -38,7 +41,8 @@ router.post(
         instructor,
         sectionName,
         semester,
-        capacity
+        capacity,
+        enrollmentDeadline: deadlineDate
       });
 
       await section.save();
@@ -77,7 +81,7 @@ router.get(
     try {
       const sections = await Section.find({ instructor: req.user._id })
         .populate("course", "code title")
-        .populate("instructor", "name email"); // optional (can remove)
+        .populate("instructor", "name email");
 
       return res.send(sections);
     } catch (ex) {
@@ -126,13 +130,17 @@ router.put(
   authorize("admin"),
   async (req, res) => {
     try {
-      const { course, instructor, sectionName, semester, capacity } = req.body;
+      const { course, instructor, sectionName, semester, capacity, enrollmentDeadline } = req.body;
 
-      if (!course || !instructor || !sectionName || !semester || capacity == null)
+      if (!course || !instructor || !sectionName || !semester || capacity == null || !enrollmentDeadline)
         return res.status(400).send("All fields are required.");
 
       if (!mongoose.Types.ObjectId.isValid(req.params.id))
         return res.status(400).send("Invalid section id.");
+
+      const deadlineDate = new Date(enrollmentDeadline);
+      if (isNaN(deadlineDate.getTime()))
+        return res.status(400).send("Invalid enrollmentDeadline date.");
 
       const existingSection = await Section.findById(req.params.id);
       if (!existingSection)
@@ -146,7 +154,6 @@ router.put(
       if (!existingInstructor || existingInstructor.role !== "instructor")
         return res.status(400).send("Invalid instructor.");
 
-      // Prevent duplicate section
       const duplicate = await Section.findOne({
         _id: { $ne: req.params.id },
         course,
@@ -157,7 +164,6 @@ router.put(
       if (duplicate)
         return res.status(400).send("Section already exists for this course.");
 
-      // Prevent lowering capacity below enrolled count
       const enrollmentCount = await Enrollment.countDocuments({
         section: req.params.id
       });
@@ -169,7 +175,7 @@ router.put(
 
       const updatedSection = await Section.findByIdAndUpdate(
         req.params.id,
-        { course, instructor, sectionName, semester, capacity },
+        { course, instructor, sectionName, semester, capacity, enrollmentDeadline: deadlineDate },
         { new: true, runValidators: true }
       );
 
@@ -204,7 +210,7 @@ router.delete(
         );
 
       await section.deleteOne();
-      
+
       return res.send(section);
     } catch (err) {
       console.log(err);
